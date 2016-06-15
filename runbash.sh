@@ -1,3 +1,7 @@
+# AUTHOR	: Des McCarter
+# DESCRIPTION	: Runs a given remote bash script on a specific VM using a specific user
+# DATE		: 15/06/2016
+
 args="${*}"
 
 . ${DEVELOPMENT}/utils/utils.sh
