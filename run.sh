@@ -1,10 +1,11 @@
 args="${*}"
 
 export VALID_ARGS=("-jenkinsmaster:the_name_of_the_jenkins_master" "-vmsoff")
-export VMS=("jmaster" "jbuildslave" "testslave" "testenvironment" "stagingenvironment" "production")
+#export VMS=("jmaster" "jbuildslave" "testslave" "testenvironment" "stagingenvironment" "production")
 
 . ${DEVELOPMENT}/utils/utils.sh
 . ${DEVELOPMENT}/cdexample/createvm.sh
+. ${DEVELOPMENT}/cdexample/runbash.sh
 
 PROPERTIES="${DEVELOPMENT}/cdexample/run.properties"
 
@@ -127,6 +128,62 @@ function initpublickeysonvms(){
 	done
 }
 
+function provisionvms(){
+
+	for vm in ${VMS[@]}
+	do
+		# get all the provisioning instructions for ${vm} ...
+		vmprovision="`getPropertyGroupAndName vm.provision.${vm} ${PROPERTIES}`"
+
+		vm_admin_user="`getProperty vm.admin.user ${PROPERTIES}`"
+
+		let script_index=0
+
+		if [ ! -z "${vmprovision}" ]
+		then
+			for data in ${vmprovision}
+			do
+				prop="`echo ${data} | sed -n s/'\(vm\.provision\.[^=\]*\).*$'/'\1'/p`"
+
+				if [ ! -z "${prop}" ]
+				then
+					provision_command="${prop/'vm.provision.'${vm}'.'/}"
+
+					if [ "${provision_command}" = "bash" ]
+					then
+						let script_index="${script_index}+1"
+	
+						temp_data="`echo ${data} | sed -n s/'^[^=]*=\(.*\)$'/'\1'/p`"			
+	
+						if [ ! -z "${temp_data}" ]
+						then
+							bash_script[${script_index}]="${temp_data}"
+						fi
+
+						executor[${script_index}]="runbash"
+					fi
+				else
+					bash_script[${script_index}]="${bash_script[${script_index}]} ${data}"	
+				fi
+			done
+
+			let index=1
+
+			while [ ! -z "${bash_script[${index}]}" ]
+			do
+				script="${bash_script[${index}]}"
+				execute_command="${executor[${index}]}"
+
+				${execute_command} "${script}" "${vm}" "${vm_admin_user}"
+
+				let index="${index}+1"
+			done
+		fi
+
+
+	done
+}
+
 processArgs ${args}
 
 validateArgs
@@ -147,11 +204,13 @@ getIps
 
 if [ -z "${VMS_OFF}" ]
 then
-	editVmConfigs
+	#editVmConfigs
 
-	startVms
+	#startVms
 
-	initpublickeysonvms
+	#initpublickeysonvms
+
+	provisionvms
 else
 	stopVms
 fi
