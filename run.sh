@@ -144,12 +144,15 @@ function provisionvms(){
 			for data in ${vmprovision}
 			do
 				prop="`echo ${data} | sed -n s/'\(vm\.provision\.[^=\]*\).*$'/'\1'/p`"
+				full_prop_name="`echo ${data} | sed -n s/'^\([^=]*\)=.*$'/'\1'/p`"
 
-				if [ ! -z "${prop}" ]
+				echo f=${full_prop_name}
+
+				if [ ! -z "${prop}" -o ! -z "${full_prop_name}" -a "${full_prop_name}" = "vm.provision.${vm}.local.bash" ]
 				then
 					provision_command="${prop/'vm.provision.'${vm}'.'/}"
 
-					if [ "${provision_command}" = "bash" ]
+					if [ "${provision_command}" = "bash" -o "${provision_command}" = "local.bash" ]
 					then
 						let script_index="${script_index}+1"
 	
@@ -161,6 +164,7 @@ function provisionvms(){
 						fi
 
 						executor[${script_index}]="runbash"
+						executor_extra_data[${script_index}]="${provision_command}"
 					fi
 				else
 					bash_script[${script_index}]="${bash_script[${script_index}]} ${data}"	
@@ -173,8 +177,9 @@ function provisionvms(){
 			do
 				script="${bash_script[${index}]}"
 				execute_command="${executor[${index}]}"
+				executor_type="${executor_extra_data[${index}]}"
 
-				${execute_command} "${script}" "${vm}" "${vm_admin_user}"
+				${execute_command} "${script}" "${vm}" "${vm_admin_user}" "${executor_type}"
 
 				let index="${index}+1"
 			done

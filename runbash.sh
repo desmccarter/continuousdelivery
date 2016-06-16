@@ -13,12 +13,7 @@ function runbash(){
 	script="${1}" 
 	vm="${2}"
 	vm_admin_user="${3}"
-
-	if [ -z "${vm_admin_user}" ]
-	then
-		error "runbash: no vm admin user for thie vm"
-		return 1
-	fi
+	remote_or_local="${4}"
 
 	if [ -z "${script}" ]
 	then
@@ -32,7 +27,19 @@ function runbash(){
 		return 1
 	fi
 
-	ip="`getProperty vm.instance.${vm} ${PROPERTIES}`"
+	if [ ! -z "${remote_or_local}" -a "${remote_or_local}" = "local.bash" ]
+	then
+		eval ${script}
+	else
+		if [ -z "${vm_admin_user}" ]
+		then
+			error "runbash: no vm admin user for this vm ${vm}"
+			return 1
+		fi
 
-	ssh "${vm_admin_user}@${ip}" "${script}"
+		ip="`getProperty vm.instance.${vm} ${PROPERTIES}`"
+
+		ssh "${vm_admin_user}@${ip}" "${script}"
+	fi
+
 }
