@@ -37,7 +37,7 @@ function runbash(){
 			return 1
 		fi
 
-		ip="`getProperty vm.instance.${vm} ${PROPERTIES}`"
+		ip="`getProperty vm.instance.${vm} ${DEVELOPMENT}/cdexample/provision/${vm}/run.properties`"
 
 		ssh "${vm_admin_user}@${ip}" "${script}"
 	fi

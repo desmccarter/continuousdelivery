@@ -250,7 +250,7 @@ function stopvm(){
 
 	if [ -z "${1}" ]
 	then
-		error "startvm: vm name not given"
+		error "stopvm: vm name not given"
 		return 1
 	fi
 
@@ -258,7 +258,7 @@ function stopvm(){
 
 	if [ ! -d "${vmdir}" ]
 	then
-		error "startvm: vm ${1} does not exist (or has not been created yet)"
+		error "stopvm: vm ${1} does not exist (or has not been created yet)"
 		return 1
 	fi
 

@@ -1,13 +1,16 @@
 args="${*}"
 
 export VALID_ARGS=("-jenkinsmaster:the_name_of_the_jenkins_master" "-vmsoff")
-#export VMS=("jmaster" "jbuildslave" "testslave" "testenvironment" "stagingenvironment" "production")
 
 . ${DEVELOPMENT}/utils/utils.sh
 . ${DEVELOPMENT}/cdexample/createvm.sh
 . ${DEVELOPMENT}/cdexample/runbash.sh
 
 PROPERTIES="${DEVELOPMENT}/cdexample/run.properties"
+PROVISION_CONFIG_ROOT="${DEVELOPMENT}/cdexample/provision"
+
+SOUT="/tmp/vms/provision_out.log"
+SERR="/tmp/vms/provision_err.log"
 
 export VMDIR=/tmp/vms
 
@@ -79,16 +82,16 @@ function editVmConfigs(){
 
 	for vm in ${VMS[@]}
 	do
-        if [ ! -d "${VMDIR}/${vm}" -o ! -f "${VMDIR}/${vm}/Vagrantfile" ]
-        then
-                createvm "${vm}"
-
-                ip_address="${VMS_IP[${index}]}"
-
-	                setvmip "${vm}" "${ip_address}"
-	        else
-	                debug "${vm} already exists"
-	        fi
+	        if [ ! -d "${VMDIR}/${vm}" -o ! -f "${VMDIR}/${vm}/Vagrantfile" ]
+	        then
+	                createvm "${vm}"
+	
+	                ip_address="${VMS_IP[${index}]}"
+	
+		        setvmip "${vm}" "${ip_address}"
+		else
+		        debug "${vm} already exists"
+		fi
 	
 	        let index="${index}+1"
 	done
@@ -120,11 +123,20 @@ function stopVms(){
 
 function initpublickeysonvms(){
 
-	vm_admin_user="`getProperty vm.admin.user ${PROPERTIES}`"
 
-	for ip in ${VMS_IP[@]}
+	for vm in ${VMS[@]}
 	do
-		initpublickeyonvm "${ip}" "${vm_admin_user}"
+		prop=${PROVISION_CONFIG_ROOT}/${vm}/run.properties
+
+		if [ -f "${prop}" ]
+		then
+			vm_admin_user="`getProperty vm.admin.user ${prop}`"
+			ip="`getProperty vm.instance.${vm} ${prop}`"
+
+			initpublickeyonvm "${ip}" "${vm_admin_user}"
+		else
+			warn "No provisioning properties exist for virtual machne ${vm}"
+		fi
 	done
 }
 
@@ -132,66 +144,73 @@ function provisionvms(){
 
 	for vm in ${VMS[@]}
 	do
-		# get all the provisioning instructions for ${vm} ...
-		vmprovision="`getPropertyGroupAndName vm.provision.${vm} ${PROPERTIES}`"
+		prop=${PROVISION_CONFIG_ROOT}/${vm}/run.properties
 
-		vm_admin_user="`getProperty vm.admin.user ${PROPERTIES}`"
-
-		let script_index=0
-
-		if [ ! -z "${vmprovision}" ]
+		if [ -f "${prop}" ]
 		then
-			for data in ${vmprovision}
-			do
-				prop="`echo ${data} | sed -n s/'\(vm\.provision\.[^=\]*\).*$'/'\1'/p`"
-				full_prop_name="`echo ${data} | sed -n s/'^\([^=]*\)=.*$'/'\1'/p`"
-
-				if [ ! -z "${prop}" -o ! -z "${full_prop_name}" -a "${full_prop_name}" = "vm.provision.${vm}.local.bash" ]
-				then
-					provision_command="${prop/'vm.provision.'${vm}'.'/}"
-
-					if [ "${provision_command}" = "bash" -o "${provision_command}" = "local.bash" ]
+			# get all the provisioning instructions for ${vm} ...
+			vmprovision="`getPropertyGroupAndName vm.provision.${vm} ${prop}`"
+	
+			vm_admin_user="`getProperty vm.admin.user ${prop}`"
+	
+			let script_index=0
+	
+			if [ ! -z "${vmprovision}" ]
+			then
+				for data in ${vmprovision}
+				do
+					prop="`echo ${data} | sed -n s/'\(vm\.provision\.[^=\]*\).*$'/'\1'/p`"
+					full_prop_name="`echo ${data} | sed -n s/'^\([^=]*\)=.*$'/'\1'/p`"
+	
+					if [ ! -z "${prop}" -o ! -z "${full_prop_name}" -a "${full_prop_name}" = "vm.provision.${vm}.local.bash" ]
 					then
-						let script_index="${script_index}+1"
+						provision_command="${prop/'vm.provision.'${vm}'.'/}"
 	
-						temp_data="`echo ${data} | sed -n s/'^[^=]*=\(.*\)$'/'\1'/p`"			
-	
-						if [ ! -z "${temp_data}" ]
+						if [ "${provision_command}" = "bash" -o "${provision_command}" = "local.bash" ]
 						then
-							bash_script[${script_index}]="${temp_data}"
+							let script_index="${script_index}+1"
+		
+							temp_data="`echo ${data} | sed -n s/'^[^=]*=\(.*\)$'/'\1'/p`"			
+		
+							if [ ! -z "${temp_data}" ]
+							then
+								bash_script[${script_index}]="${temp_data}"
+							fi
+	
+							executor[${script_index}]="runbash"
+							executor_extra_data[${script_index}]="${provision_command}"
 						fi
-
-						executor[${script_index}]="runbash"
-						executor_extra_data[${script_index}]="${provision_command}"
+					else
+						bash_script[${script_index}]="${bash_script[${script_index}]} ${data}"	
 					fi
-				else
-					bash_script[${script_index}]="${bash_script[${script_index}]} ${data}"	
-				fi
-			done
-
-			let index=1
-
-			while [ ! -z "${bash_script[${index}]}" ]
-			do
-				script="${bash_script[${index}]}"
-				execute_command="${executor[${index}]}"
-				executor_type="${executor_extra_data[${index}]}"
-
-				info "Executing bash: \"${script}\""
-
-				${execute_command} "${script}" "${vm}" "${vm_admin_user}" "${executor_type}"
-
-				if [ ! "$?" = 0 ]
-				then
-					error "Error found. Stopping execution"
-					return 1
-				fi
-
-				let index="${index}+1"
-			done
+				done
+	
+				let index=1
+	
+				while [ ! -z "${bash_script[${index}]}" ]
+				do
+					script="${bash_script[${index}]}"
+					execute_command="${executor[${index}]}"
+					executor_type="${executor_extra_data[${index}]}"
+	
+					info "Executing bash on virtual machine ${vm}: \"${script}\" ..."
+	
+					${execute_command} "${script}" "${vm}" "${vm_admin_user}" "${executor_type}" >> ${SOUT} 2>> ${SERR}
+	
+					if [ ! "$?" = 0 ]
+					then
+						error "Error found. Stopping execution"
+						return 1
+					else
+						info "Bash script completed successfuly."
+					fi
+	
+					let index="${index}+1"
+				done
+			fi
+		else
+			warn "provisionvm: no provisioning properties exist (${prop}) for virtual machine ${vm}, therefore no provisioning to do on ${vm}."
 		fi
-
-
 	done
 }
 
