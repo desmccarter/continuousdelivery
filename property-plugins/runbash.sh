@@ -2,6 +2,8 @@
 # DESCRIPTION	: Runs a given remote bash script on a specific VM using a specific user
 # DATE		: 15/06/2016
 
+export runbash_loaded=true
+
 args="${*}"
 
 . ${DEVELOPMENT}/utils/utils.sh

@@ -216,10 +216,17 @@ function setvmip(){
 function createvm(){
 
 	name="$1"
+	box_type="$2"
 
 	if [ -z "${name}" ]
 	then
-		error "Name of VM not given"
+		error "Name of virtual machine not given"
+		return 1
+	fi
+
+	if [ -z "${box_type}" ]
+	then
+		error "Box type for virtual macine ${vm} not given"
 		return 1
 	fi
 
@@ -229,7 +236,7 @@ function createvm(){
 
 	cd ${vmdir}
 
-	vagrant init hashicorp/precise32 >/dev/null 2>&1
+	vagrant init "${box_type}" >/dev/null 2>&1
 
 	if [ ! "$?" = 0 ]
 	then

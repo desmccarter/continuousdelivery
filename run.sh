@@ -4,7 +4,6 @@ export VALID_ARGS=("-jenkinsmaster:the_name_of_the_jenkins_master" "-vmsoff")
 
 . ${DEVELOPMENT}/utils/utils.sh
 . ${DEVELOPMENT}/cdexample/createvm.sh
-. ${DEVELOPMENT}/cdexample/runbash.sh
 
 PROPERTIES="${DEVELOPMENT}/cdexample/run.properties"
 PROVISION_CONFIG_ROOT="${DEVELOPMENT}/cdexample/provision"
@@ -76,21 +75,41 @@ function getIps(){
 	done
 }
 
+function createVms(){
+
+	for vm in ${VMS[@]}
+	do
+		prop=${PROVISION_CONFIG_ROOT}/${vm}/run.properties
+
+        	if [ ! -f "${prop}" ]
+        	then
+			warn "No provisioning properties exist for virtual machine ${vm}."
+		else
+                	box_type="`getProperty vm.box.type ${prop}`"
+	
+	        	if [ ! -d "${VMDIR}/${vm}" -o ! -f "${VMDIR}/${vm}/Vagrantfile" ]
+	        	then
+	                	createvm "${vm}" "${box_type}"
+			else
+		        	info "Virtual machine ${vm} already exists"
+			fi
+		fi
+	done
+}
+
 function editVmConfigs(){
 
 	let index=0
 
 	for vm in ${VMS[@]}
 	do
-	        if [ ! -d "${VMDIR}/${vm}" -o ! -f "${VMDIR}/${vm}/Vagrantfile" ]
+	        if [ -f "${VMDIR}/${vm}/Vagrantfile" ]
 	        then
-	                createvm "${vm}"
-	
 	                ip_address="${VMS_IP[${index}]}"
 	
 		        setvmip "${vm}" "${ip_address}"
 		else
-		        debug "${vm} already exists"
+		        warn "Vangrant file for ${vm} does not exist. Cannot edit VM properties"
 		fi
 	
 	        let index="${index}+1"
@@ -194,6 +213,9 @@ function provisionvms(){
 					executor_type="${executor_extra_data[${index}]}"
 	
 					info "Executing bash on virtual machine ${vm}: \"${script}\" ..."
+
+					# load the executor ...
+					. ${DEVELOPMENT}/cdexample/property-plugins/${execute_command}.sh
 	
 					${execute_command} "${script}" "${vm}" "${vm_admin_user}" "${executor_type}" >> ${SOUT} 2>> ${SERR}
 	
@@ -234,11 +256,25 @@ getIps
 
 if [ -z "${VMS_OFF}" ]
 then
+	# Create virtual machines if they do 
+	# not yet exist ...
+
+	createVms
+
+	# Edit VM configs and change properties
+	# where required ...
+
 	editVmConfigs
+
+	# Start the virtual machines ...
 
 	startVms
 
+	# Place the public key (of this user) onto the VM ...
+
 	initpublickeysonvms
+
+	# Start installing apps on VM's ...
 
 	provisionvms
 else
