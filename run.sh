@@ -1,3 +1,40 @@
+# AUTHOR	: Des McCarter
+# DATE		: 17/06/2016
+# DESCRIPTION	: Creates virtual machines (using vagrant) and provisions them using VM properties.
+#
+#		  Step 1 - edit the run.properties file (located in the same folder as run.sh) and insert a line similar to the following:
+#		  vm.instance.nexus=192.168.33.70
+#		  ... where 'nexus' is the name of the vm (this can be named anything)
+#		  Step 2 - create a provision/<name of vm>/run.properties file containing the provisioning properties for this vm. Content should
+#		  be similar to this:
+#
+#
+#		vm.admin.user=vagrant
+#		
+#		# centos box ...
+#		vm.box.type=hashicorp/precise32
+#		
+#		# install Nexus on nexus
+#		# IP address of Nexus ...
+#		vm.instance.nexus=192.168.33.70
+#		
+#		# Provisioning properties of Nexus ...
+#		
+#		vm.provision.nexus.bash=sudo apt-get update
+#		vm.provision.nexus.bash=sudo apt-get -q -y install unzip
+#		vm.provision.nexus.bash=sudo apt-get -q -y install openjdk-7-jre-headless
+#		vm.provision.nexus.bash=sudo mkdir -p /usr/local/nexus
+#		vm.provision.nexus.bash=wget  http://download.sonatype.com/nexus/oss/nexus-2.12.0-01-bundle.zip -O /var/tmp/nexus-2.12.0-01-bundle.zip >/dev/null 2>&1 
+#		vm.provision.nexus.bash=sudo chown vagrant /usr/local/nexus
+#		vm.provision.nexus.bash=unzip -o /var/tmp/nexus-2.12.0-01-bundle.zip -d /usr/local/nexus
+#		vm.provision.nexus.bash=nohup /usr/local/nexus/nexus-2.12.0-01/bin/nexus start &
+#
+#
+#		... where:
+#		vm.admin.user is the admin user that will be used to log into the VM
+#	    	vm.box.type is the type of VM you need setting up (identical to vagrants vm.box property in VangrantFile
+#		vm.provision.nexus.bash are commands to execute on that vm / box
+
 args="${*}"
 
 export VALID_ARGS=("-jenkinsmaster:the_name_of_the_jenkins_master" "-vmsoff")
