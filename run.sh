@@ -146,8 +146,6 @@ function provisionvms(){
 				prop="`echo ${data} | sed -n s/'\(vm\.provision\.[^=\]*\).*$'/'\1'/p`"
 				full_prop_name="`echo ${data} | sed -n s/'^\([^=]*\)=.*$'/'\1'/p`"
 
-				echo f=${full_prop_name}
-
 				if [ ! -z "${prop}" -o ! -z "${full_prop_name}" -a "${full_prop_name}" = "vm.provision.${vm}.local.bash" ]
 				then
 					provision_command="${prop/'vm.provision.'${vm}'.'/}"
@@ -179,7 +177,15 @@ function provisionvms(){
 				execute_command="${executor[${index}]}"
 				executor_type="${executor_extra_data[${index}]}"
 
+				info "Executing bash: \"${script}\""
+
 				${execute_command} "${script}" "${vm}" "${vm_admin_user}" "${executor_type}"
+
+				if [ ! "$?" = 0 ]
+				then
+					error "Error found. Stopping execution"
+					return 1
+				fi
 
 				let index="${index}+1"
 			done
@@ -209,11 +215,11 @@ getIps
 
 if [ -z "${VMS_OFF}" ]
 then
-	#editVmConfigs
+	editVmConfigs
 
-	#startVms
+	startVms
 
-	#initpublickeysonvms
+	initpublickeysonvms
 
 	provisionvms
 else
