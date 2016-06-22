@@ -208,53 +208,51 @@ function provisionvms(){
 			vmprovision="`getPropertyGroupAndName vm.provision.${vm} ${prop}`"
 	
 			vm_admin_user="`getProperty vm.admin.user ${prop}`"
+
+			plugins_location="${DEVELOPMENT}/cdexample/property-plugins"
 	
 			let script_index=0
 	
 			if [ ! -z "${vmprovision}" ]
 			then
-				for data in ${vmprovision}
+				for data in "`echo ${vmprovision} | tr ' ' '^'`"
 				do
-					prop="`echo ${data} | sed -n s/'\(vm\.provision\.[^=\]*\).*$'/'\1'/p`"
-					full_prop_name="`echo ${data} | sed -n s/'^\([^=]*\)=.*$'/'\1'/p`"
-	
-					if [ ! -z "${prop}" -o ! -z "${full_prop_name}" -a "${full_prop_name}" = "vm.provision.${vm}.local.bash" ]
+					data_cleaned="`echo ${data} | tr '\^' ' '`"
+
+					exec_type="`echo ${data_cleaned} | sed -n s/\"vm\.provision\.$vm\.\([^\.|=]*\).*$\"/\"\1\"/p`"
+
+					func="run${exec_type}"
+
+					scr="${plugins_location}/${func}.sh"
+
+					if [ ! -z "${exec_type}" -a -f "${scr}" ]
 					then
-						provision_command="${prop/'vm.provision.'${vm}'.'/}"
+						script_data="`echo ${data_cleaned} | sed -n s/'^[^=]*=\(.*\)$'/'\1'/p`"			
+
+						echo script_data=$script_data data=$data_cleaned
+
+						bash_script[${script_index}]="${script_data}"
 	
-						if [ "${provision_command}" = "bash" -o "${provision_command}" = "local.bash" ]
-						then
-							let script_index="${script_index}+1"
-		
-							temp_data="`echo ${data} | sed -n s/'^[^=]*=\(.*\)$'/'\1'/p`"			
-		
-							if [ ! -z "${temp_data}" ]
-							then
-								bash_script[${script_index}]="${temp_data}"
-							fi
-	
-							executor[${script_index}]="runbash"
-							executor_extra_data[${script_index}]="${provision_command}"
-						fi
-					else
-						bash_script[${script_index}]="${bash_script[${script_index}]} ${data}"	
+						executor[${script_index}]="${func}"
+
+						let script_index="${script_index}+1"
 					fi
 				done
-	
-				let index=1
+
+				let index=0
 	
 				while [ ! -z "${bash_script[${index}]}" ]
 				do
 					script="${bash_script[${index}]}"
 					execute_command="${executor[${index}]}"
-					executor_type="${executor_extra_data[${index}]}"
-	
+
 					info "Executing bash on virtual machine ${vm}: \"${script}\" ..."
 
-					# load the executor ...
-					. ${DEVELOPMENT}/cdexample/property-plugins/${execute_command}.sh
-	
-					${execute_command} "${script}" "${vm}" "${vm_admin_user}" "${executor_type}" >> ${SOUT} 2>> ${SERR}
+					. "${plugins_location}/${execute_command}.sh"
+
+					#${execute_command} "${script}" "${vm}" "${vm_admin_user}" >> ${SOUT} 2>> ${SERR}
+					echo ${execute_command} "${script}" "${vm}" "${vm_admin_user}"
+					${execute_command} "${script}" "${vm}" "${vm_admin_user}"
 	
 					if [ ! "$?" = 0 ]
 					then
@@ -296,12 +294,12 @@ then
 	# Create virtual machines if they do 
 	# not yet exist ...
 
-	createVms
+	#createVms
 
 	# Edit VM configs and change properties
 	# where required ...
 
-	editVmConfigs
+	#editVmConfigs
 
 	# Start the virtual machines ...
 

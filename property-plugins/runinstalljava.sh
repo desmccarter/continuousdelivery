@@ -12,7 +12,7 @@ args="${*}"
 . ${DEVELOPMENT}/cdexample/createvm.sh
 
 
-function runbash(){
+function runinstalljava(){
 
 	script="${1}" 
 	vm="${2}"
@@ -38,7 +38,7 @@ function runbash(){
 
 		ip="`getProperty vm.instance.${vm} ${DEVELOPMENT}/cdexample/provision/${vm}/run.properties`"
 
-		echo ssh "${vm_admin_user}@${ip}" "${script}"
-		ssh "${vm_admin_user}@${ip}" "${script}"
+		ssh "${vm_admin_user}@${ip}" sudo apt-get update
+		ssh "${vm_admin_user}@${ip}" sudo apt-get -q -y install openjdk-7-jre-headless
 	fi
 }

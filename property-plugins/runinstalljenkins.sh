@@ -12,7 +12,7 @@ args="${*}"
 . ${DEVELOPMENT}/cdexample/createvm.sh
 
 
-function runbash(){
+function runinstalljenkins(){
 
 	script="${1}" 
 	vm="${2}"
@@ -38,7 +38,9 @@ function runbash(){
 
 		ip="`getProperty vm.instance.${vm} ${DEVELOPMENT}/cdexample/provision/${vm}/run.properties`"
 
-		echo ssh "${vm_admin_user}@${ip}" "${script}"
-		ssh "${vm_admin_user}@${ip}" "${script}"
+		ssh "${vm_admin_user}@${ip}" sudo wget -q -O - https://jenkins-ci.org/debian/jenkins-ci.org.key | sudo apt-key add -
+		ssh "${vm_admin_user}@${ip}" sudo sh -c 'echo deb http://pkg.jenkins-ci.org/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
+		ssh "${vm_admin_user}@${ip}" sudo apt-get update
+		ssh "${vm_admin_user}@${ip}" sudo apt-get -y install jenkins
 	fi
 }
